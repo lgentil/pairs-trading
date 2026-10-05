@@ -1,0 +1,52 @@
+# settings.yaml
+
+backtest:
+  split_ratio: 0.70
+  lookback_years: 15
+  end_date: "2026-09-20"
+  transaction_cost: 0.0004
+  compounding: true
+  target_metric: "sharpe_ratio" # Corresponds to ID 3 in METRICS_MAP
+
+single_pair:
+  ticker_x: "ITUB3.SA"
+  ticker_y: "ITSA3.SA"
+
+multi_pair:
+  universe:
+    - ["ITUB4.SA", "BBDC4.SA", "Itaú vs Bradesco"]
+    - ["ITUB4.SA", "BBAS3.SA", "Itaú vs Banco do Brasil"]
+    - ["SANB11.SA", "BBDC4.SA", "Santander vs Bradesco"]
+    - ["ITSA4.SA", "ITUB4.SA", "Itaúsa vs Itaú Unibanco (Holding vs Bank PN)"]
+    - ["ITSA3.SA", "ITUB3.SA", "Itaúsa vs Itaú Unibanco (Holding vs Bank ON)"]
+    - ["GOAU4.SA", "GGBR4.SA", "Metalúrgica Gerdau vs Gerdau (Holding vs Steel)"]
+    - ["VALE3.SA", "CSNA3.SA", "Vale vs CSN"]
+    - ["GGBR4.SA", "CSNA3.SA", "Gerdau vs CSN"]
+    - ["USIM5.SA", "CSNA3.SA", "Usiminas vs CSN"]
+    - ["PETR4.SA", "PETR3.SA", "Petrobras PN vs ON"]
+    - ["PRIO3.SA", "PETR4.SA", "PRIO vs Petrobras"]
+    - ["UGPA3.SA", "CSAN3.SA", "Ultrapar vs Cosan"]
+    - ["CPLE3.SA", "CMIG4.SA", "Copel vs Neoenergia"]
+    - ["EGIE3.SA", "TAEE11.SA", "Engie vs Taesa"]
+    - ["EQTL3.SA", "CPFE3.SA", "Equatorial vs CPFL"]
+    - ["SUZB3.SA", "KLBN4.SA", "Suzano vs Klabin PN"]
+    - ["LREN3.SA", "AMER3.SA", "Lojas Renner vs Americanas"]
+    - ["MGLU3.SA", "AMER3.SA", "Magazine Luiza vs Americanas"]
+
+grids:
+  bollinger:
+    ols_windows: [60, 90, 120, 180, 252]
+    ma_window: ['dynamic', 15, 20, 30]
+    stop_mult: [1.25, 1.5, 1.75, 2.0, null]
+  
+  zscore:
+    ols_windows: [60, 90, 120, 180, 252]
+    exit_z: [0.0, 0.25, 0.5, 0.75, 1.0]
+    stop_loss_z: [3.0, 3.5, null]
+    lookback_window: ['dynamic', 15, 20, 30]
+
+  kalman:
+    exit_z: [0.0, 0.25, 0.5, 0.75, 1.0]
+    stop_loss_z: [3.0, 3.5]
+    delta: [0.00001, 0.0001, 0.001]
+    obs_variance: [0.001, 0.01]

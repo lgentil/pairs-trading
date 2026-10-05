@@ -1,0 +1,22 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Virtual Environments
+venv/
+env/
+.env
+
+# Scratch files
+extract_code.py
+extracted_code.py
+refactor.py
+create_notebooks.py
+
+# Data / Outputs
+*.csv
+*.html
