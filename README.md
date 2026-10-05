@@ -1,6 +1,6 @@
 # Pairs Trading & Statistical Arbitrage Pipeline
 
-This repository contains the Final Project for the EPAT (Executive Programme in Algorithmic Trading) course. 
+This repository contains the Final Project for the EPAT (Executive Programme in Algorithmic Trading - Batch 70) course. 
 It implements a robust, modular pipeline for backtesting, optimizing, and evaluating pairs trading strategies.
 
 ## Project Structure
