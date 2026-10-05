@@ -26,3 +26,10 @@ You can use the notebooks in the `notebooks/` directory to run the simulations.
 - `02_multi_pair_simulation.ipynb`: Executes backtests on a universe of pre-defined pairs.
 
 Modify `config/settings.yaml` to change the pairs, hyperparameter grids, or backtesting parameters.
+
+## Contact
+
+**Luiz Alberto Gentil Mendes**
+- LinkedIn: [Luiz Gentil](https://www.linkedin.com/in/luiz-gentil-404584/)
+
+
