@@ -31,6 +31,7 @@ The data price used to run the simulations for all asset pairs is saved in the `
 - `src/utils/`: Evaluation metrics and plotting functions.
 - `notebooks/`: Jupyter notebooks demonstrating single-pair and multi-pair simulations.
 - `data/`: repository of all asset pairs data price in .csv
+- `quantstats_report`: repository of Quantstats reports
 
 
 ## Installation
