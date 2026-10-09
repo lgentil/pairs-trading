@@ -302,6 +302,7 @@ def compare_strategy_statistics(
         "Start date",
         "End date",
         "Trading days",
+        "Time in market (%)",
         "Period (months)",
         "Period (years)",
         "Gross return (%)",
@@ -601,10 +602,15 @@ def compare_strategy_statistics(
             else np.nan
         )
 
+        total_days = len(df)
+        active_days = int((positions != 0.0).sum())
+        time_in_market_pct = (active_days / total_days * 100.0) if total_days > 0 else 0.0
+
         summary_records[label] = {
             "Start date": dates[0].strftime("%Y-%m-%d"),
             "End date": dates[-1].strftime("%Y-%m-%d"),
-            "Trading days": len(df),
+            "Trading days": total_days,
+            "Time in market (%)": time_in_market_pct,
             "Period (months)": months,
             "Period (years)": years,
             "Gross return (%)": gross_return_pct,
