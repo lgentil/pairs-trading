@@ -18,5 +18,4 @@ refactor.py
 create_notebooks.py
 
 # Data / Outputs
-*.csv
 *.html
