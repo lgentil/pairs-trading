@@ -17,7 +17,7 @@ To overcome performance degradation during non-stationary spread regimes, a Stat
 
 ## Benchmark
 
-To compare the strategies against the benchmark, the Quantstats library (Python) was used to generate two reports for each strategy: one using the independent asset (ticker_x) as the benchmark, and the other using the CDI (a risk-free investment).The reports are available in the `quantstats_report` folder.
+To compare the strategies against the benchmark, the Quantstats library (Python) was used to generate two reports for each strategy: one using the independent asset (ticker_x) as the benchmark, and the other using the CDI (a risk-free investment).The reports are available in the `quantstats_report` folder. The historical CDI data used as a benchmark are saved in this folder.
 
 ## Note
 
