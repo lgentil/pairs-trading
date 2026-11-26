@@ -59,7 +59,8 @@ class StatisticalAutoSelector:
         strategies_config: dict,
         lookback_days: int = 90,
         step_days: int = 21,
-        transaction_cost: float = 0.0004
+        transaction_cost: float = 0.0004,
+        **trading_kwargs
     ) -> None:
         """Initializes the statistical regime selector and precomputes strategy-ready data."""
         self.df_full = df_full.copy()
@@ -70,13 +71,14 @@ class StatisticalAutoSelector:
         self.lookback_days = lookback_days
         self.step_days = step_days
         self.t_cost = float(transaction_cost)
+        self.trading_kwargs = trading_kwargs
         self.df_full.index = pd.to_datetime(self.df_full.index)
         self.precomputed_data = {}
         
         # Precompute the OLS Rolling Spread for the entire dataset
         for strat_name, (StratClass, params) in self.strategies_config.items():
             if "Kalman" not in StratClass.__name__:
-                ols_w = params.get('ols_window', 90)
+                ols_w = int(params.get('ols_window', 90))
                 analyzer = RollingSpreadAnalyzer(self.df_full.copy(), self.ticker_x, self.ticker_y, window=ols_w)
                 self.precomputed_data[strat_name] = analyzer.run_analysis()
             else:
@@ -120,7 +122,8 @@ class StatisticalAutoSelector:
                     ticker_x=self.ticker_x,
                     ticker_y=self.ticker_y,
                     transaction_cost=self.t_cost,
-                    **strat_params
+                    **strat_params,
+                    **self.trading_kwargs
                 )
                 
                 perf = temp_strat.get_performance_metrics()
@@ -191,7 +194,8 @@ class StatisticalAutoSelector:
                 ticker_x=self.ticker_x,
                 ticker_y=self.ticker_y,
                 transaction_cost=self.t_cost,
-                **strat_params
+                **strat_params,
+                **self.trading_kwargs
             )
             
             step_results = forward_strat.df.loc[current_start_date:current_end_date]

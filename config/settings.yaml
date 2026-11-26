@@ -1,9 +1,21 @@
 # settings.yaml
 
+data:
+  source: "yahoo"             # "mql" for MetaTrader files or "yahoo"
+  timeframe: "1d"        # Minutes: 1, 2, 3, 4, 5, 6, 10, 12, 15, 20, 30 (or '1min'..'30min', 'M1'..'M30') | Hours: 1h, 2h, 4h | Daily: 1d
+  mql_dir: "data/data_mql"
+
+trading:
+  mode: "swing"                 # "swing" (default) or "day_trade"
+  trade_only_stationary: true      # If true, only opens new positions when the spread is stationary at bar close (ADF p-value < 0.10)
+  entry_start_time: "10:15"         # Initial time for opening new positions (day_trade)
+  entry_end_time: "16:30"           # Cutoff time for opening new positions (day_trade)
+  close_time: "16:45"               # Mandatory market close time for all open positions (day_trade)
+
 backtest:
   split_ratio: 0.70     
   lookback_years: 15
-  end_date: "2026-09-20"
+  end_date: "2026-09-21"
   transaction_cost: 0.0004 # corresponds to 0,04% per trade leg
   compounding: true 
   target_metric: "sharpe_ratio" # Corresponds to ID 3 in METRICS_MAP
@@ -34,22 +46,53 @@ multi_pair:
     - ["MGLU3.SA", "AMER3.SA", "Magazine Luiza vs Americanas"]
 
 grids:
-  bollinger:
-    ols_windows: [60, 90, 120, 180, 252]
-    ma_window: ['dynamic', 15, 20, 30]
-    stop_mult: [1.25, 1.5, 1.75, 2.0, null]
-  
-  zscore:
-    ols_windows: [60, 90, 120, 180, 252]
-    exit_z: [0.0, 0.25, 0.5, 0.75, 1.0]
-    stop_loss_z: [3.0, 3.5, null]
-    lookback_window: ['dynamic', 15, 20, 30]
+  # ==============================================================================
+  # SWING TRADING GRIDS (Daily Timeframes)
+  # ==============================================================================
+  swing:
+    bollinger:
+      ols_windows: [60, 90, 120, 180, 252]
+      num_std: [1.0, 1.07, 1.14, 1.21, 1.29, 1.36, 1.43, 1.5, 1.57, 1.64, 1.71, 1.79, 1.86, 1.93, 2.0]
+      ma_window: ['dynamic', 15, 20, 30]
+      stop_mult: [1.25, 1.5, 1.75, 2.0, null]
 
-  kalman:
-    exit_z: [0.0, 0.25, 0.5, 0.75, 1.0]
-    stop_loss_z: [3.0, 3.5]
-    delta: [0.00001, 0.0001, 0.001]
-    obs_variance: [0.001, 0.01]
+    zscore:
+      ols_windows: [60, 90, 120, 180, 252]
+      entry_z: [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5]
+      exit_z: [0.0, 0.25, 0.5, 0.75, 1.0]
+      stop_loss_z: [3.0, 3.5, null]
+      lookback_window: ['dynamic', 15, 20, 30]
+
+    kalman:
+      entry_z: [1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5]
+      exit_z: [0.0, 0.25, 0.5, 0.75, 1.0]
+      stop_loss_z: [3.0, 3.5]
+      delta: [0.00001, 0.0001, 0.001]
+      obs_variance: [0.001, 0.01]
+
+  # ==============================================================================
+  # DAY TRADING GRIDS (Intraday Timeframes: 1m, 5m, 10m, 15m, 30m)
+  # ==============================================================================
+  day_trade:
+    bollinger:
+      ols_windows: [30, 60, 90, 120]
+      num_std: [1.0, 1.07, 1.14, 1.21, 1.29, 1.36, 1.43, 1.5, 1.57, 1.64, 1.71, 1.79, 1.86, 1.93, 2.0]
+      ma_window: ['dynamic', 10, 15, 20, 30]
+      stop_mult: [1.25, 1.5, 2.0, null]
+
+    zscore:
+      ols_windows: [30, 60, 90, 120]
+      entry_z: [1.0, 1.07, 1.14, 1.21, 1.29, 1.36, 1.43, 1.5, 1.57, 1.64, 1.71, 1.79, 1.86, 1.93, 2.0]
+      exit_z: [0.0, 0.25, 0.5]
+      stop_loss_z: [2.5, 3.0, null]
+      lookback_window: ['dynamic', 10, 15, 20, 30]
+
+    kalman:
+      entry_z: [1.0, 1.25, 1.5, 1.75, 2.0]
+      exit_z: [0.0, 0.25, 0.5]
+      stop_loss_z: [2.5, 3.0]
+      delta: [0.0000001, 0.000001, 0.000005] # Calibrated for intraday bar frequency (1e-7, 1e-6, 5e-6)
+      obs_variance: [0.0001, 0.001]
 
 strategy_names:
   bollinger: 'Bollinger Bands'

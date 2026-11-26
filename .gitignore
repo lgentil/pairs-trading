@@ -11,11 +11,22 @@ venv/
 env/
 .env
 
-# Scratch files
+# Scratch and temporary scripts
+scratch/
+test_*.py
 extract_code.py
 extracted_code.py
 refactor.py
 create_notebooks.py
 
-# Data / Outputs
+# Heavy Market Data (Intraday MQL files)
+data/data_mql/
+*.tsv
 
+# IDE & Operating System
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db

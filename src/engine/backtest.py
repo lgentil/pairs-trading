@@ -1,5 +1,7 @@
+import os
 from .analyzer import RollingSpreadAnalyzer
 from .optimizer import PlateauOptimizer
+from ..utils.data_loader import MQLDataLoader
 # Import libraries
 # Python version 3.14.4
 
@@ -76,9 +78,15 @@ class PairsBacktest:
         show_heatmaps: bool = True,
         transaction_cost: float = 0.0,
         compounding: bool = False,
-        target_metric: str = 'train_return'
-        
-
+        target_metric: str = 'train_return',
+        data_source: str = 'mql',
+        timeframe: str = '5min',
+        data_dir: Optional[str] = None,
+        trading_mode: str = 'swing',
+        trade_only_stationary: bool = False,
+        entry_start_time: str = '10:15',
+        entry_end_time: str = '16:30',
+        close_time: str = '16:45'
     ) -> None:
         """Initializes the backtesting environment, sets operational flags, and formats parameter grids.
 
@@ -96,6 +104,15 @@ class PairsBacktest:
             show_heatmaps (bool, optional): Whether to display heatmaps during plot generation. Defaults to True.
             transaction_cost (float, optional): Assumed slippage and commission per trade as a decimal. Defaults to 0.0.
             compounding (bool, optional): Compounding method for equity curve. Defaults to False for fixed sizing.
+            target_metric (str, optional): Target performance metric for hyperparameter selection.
+            data_source (str, optional): Data provider ('mql' for local MetaTrader CSVs or 'yahoo'). Defaults to 'mql'.
+            timeframe (str, optional): Resample timeframe (e.g. '1min', '5min', '15min', '30min', '60min'). Defaults to '5min'.
+            data_dir (Optional[str], optional): Directory containing MQL CSV files. Defaults to 'data/data_mql'.
+            trading_mode (str, optional): Operation mode ('swing' default or 'day_trade').
+            trade_only_stationary (bool, optional): If True, only opens trades if the spread is stationary (ADF p-value < 0.10).
+            entry_start_time (str, optional): Start time for new day trading entries ('10:15').
+            entry_end_time (str, optional): Cutoff time for new day trading entries ('16:30').
+            close_time (str, optional): Mandatory daily close time for day trading positions ('16:45').
         """
         self.ticker_x: str = ticker_x
         self.ticker_y: str = ticker_y
@@ -111,6 +128,23 @@ class PairsBacktest:
         self.compounding: bool = bool(compounding)
         self.target_metric: str = target_metric
         self.strategy_name: str = strategy_name
+
+        self.data_source: str = data_source.lower()
+        self.timeframe: str = timeframe
+        self.data_dir: Optional[str] = data_dir
+
+        self.trading_mode: str = trading_mode.lower()
+        self.trade_only_stationary: bool = bool(trade_only_stationary)
+        self.entry_start_time: str = entry_start_time
+        self.entry_end_time: str = entry_end_time
+        self.close_time: str = close_time
+        self.trading_kwargs: Dict[str, Any] = {
+            'trading_mode': self.trading_mode,
+            'trade_only_stationary': self.trade_only_stationary,
+            'entry_start_time': self.entry_start_time,
+            'entry_end_time': self.entry_end_time,
+            'close_time': self.close_time,
+        }
 
         self.requires_ols_analyzer: bool = not strategy_cls.__name__ == 'KalmanZScoreStrategy'
         self.ols_windows: List[Union[int, str]] = (
@@ -166,11 +200,50 @@ class PairsBacktest:
 
     def fetch_data(self) -> None:
         """Fetches and prepares both In-Sample (Train) and Out-of-Sample (Test) datasets."""
-        print("--- Downloading and Testing Training Data (In-Sample) ---")
-        self.df_train = self._fetch_data(self.start_date, self.end_date_train, verbose=True)
+        if self.data_source == 'mql':
+            print("*" * 50)
+            print(f" Loading MetaTrader (MQL5) Data for {self.ticker_x} and {self.ticker_y} (Timeframe: {self.timeframe})")
+            data_directory = self.data_dir or "data/data_mql"
+            # Auto-resolve relative path if executing from inside a subdirectory like /notebooks
+            if not os.path.exists(data_directory):
+                alt_dir = os.path.join("..", data_directory)
+                if os.path.exists(alt_dir):
+                    data_directory = alt_dir
 
-        print("--- Downloading and Testing Testing Data (Out-of-Sample) ---")
-        self.df_test = self._fetch_data(self.start_date_test, self.end_date, verbose=True)
+            loader = MQLDataLoader(data_dir=data_directory)
+            df_full = loader.load_pair(
+                ticker_x=self.ticker_x,
+                ticker_y=self.ticker_y,
+                timeframe=self.timeframe,
+                verbose=True
+            )
+
+            start_dt = pd.to_datetime(self.start_date)
+            end_train_dt = pd.to_datetime(self.end_date_train)
+            if end_train_dt.time() == pd.Timestamp("00:00:00").time():
+                end_train_dt = end_train_dt + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
+
+            start_test_dt = pd.to_datetime(self.start_date_test)
+            end_test_dt = pd.to_datetime(self.end_date)
+            if end_test_dt.time() == pd.Timestamp("00:00:00").time():
+                end_test_dt = end_test_dt + pd.Timedelta(days=1) - pd.Timedelta(nanoseconds=1)
+
+            # If start_date is earlier than the first available record, adjust to dataset start
+            if start_dt < df_full.index[0]:
+                print(f"[!] Info: start_date ({start_dt.date()}) is earlier than MQL data. Adjusted to {df_full.index[0].date()}")
+                start_dt = df_full.index[0]
+
+            self.df_train = df_full[(df_full.index >= start_dt) & (df_full.index <= end_train_dt)].copy()
+            self.df_test = df_full[(df_full.index >= start_test_dt) & (df_full.index <= end_test_dt)].copy()
+
+            print(f"[*] In-Sample (Train):    {len(self.df_train)} bars ({self.df_train.index[0]} to {self.df_train.index[-1]})")
+            print(f"[*] Out-of-Sample (Test): {len(self.df_test)} bars ({self.df_test.index[0]} to {self.df_test.index[-1]})")
+        else:
+            print("--- Downloading and Testing Training Data (In-Sample) ---")
+            self.df_train = self._fetch_data(self.start_date, self.end_date_train, verbose=True)
+
+            print("--- Downloading and Testing Testing Data (Out-of-Sample) ---")
+            self.df_test = self._fetch_data(self.start_date_test, self.end_date, verbose=True)
 
     def optimize_train(self) -> None:
         """Executes multidimensional grid search optimization on the In-Sample dataset."""
@@ -201,6 +274,7 @@ class PairsBacktest:
                         self.ticker_y, 
                         transaction_cost=self.transaction_cost,
                         compounding=self.compounding,
+                        **self.trading_kwargs,
                         **current_params
                     )
                     
@@ -232,6 +306,7 @@ class PairsBacktest:
                     self.ticker_y, 
                     transaction_cost=self.transaction_cost,
                     compounding=self.compounding,
+                    **self.trading_kwargs,
                     **current_params
                 )
                 
@@ -294,6 +369,7 @@ class PairsBacktest:
                         self.ticker_y, 
                         transaction_cost=self.transaction_cost,
                         compounding=self.compounding,
+                        **self.trading_kwargs,
                         **params
                     )
                     
@@ -320,6 +396,7 @@ class PairsBacktest:
                     self.ticker_y, 
                     transaction_cost=self.transaction_cost,
                     compounding=self.compounding,
+                    **self.trading_kwargs,
                     **params
                 )
                 
@@ -563,7 +640,7 @@ class PairsBacktest:
         params = {k: v for k, v in self.best_params.items() if k not in ['ols_window', 'train_return', 'test_return']}
 
         if self.requires_ols_analyzer:
-            w = self.best_params['ols_window']
+            w = int(self.best_params['ols_window'])
             analyzer = RollingSpreadAnalyzer(self.df_train, self.ticker_x, self.ticker_y, window=w)
             df_analyzed = analyzer.run_analysis()
             strategy = self.strategy_cls(
@@ -572,6 +649,7 @@ class PairsBacktest:
                 self.ticker_y, 
                 transaction_cost=self.transaction_cost,
                 compounding=self.compounding,
+                **self.trading_kwargs,
                 **params
             )
         else:
@@ -582,6 +660,7 @@ class PairsBacktest:
                 compute_stationarity=True, 
                 transaction_cost=self.transaction_cost,
                 compounding=self.compounding,
+                **self.trading_kwargs,
                 **params
             )
 
@@ -601,7 +680,7 @@ class PairsBacktest:
         params = {k: v for k, v in self.best_params.items() if k not in ['ols_window', 'train_return', 'test_return']}
 
         if self.requires_ols_analyzer:
-            w = self.best_params['ols_window']
+            w = int(self.best_params['ols_window'])
             overlap_size = w - 1
             df_test_extended = pd.concat([self.df_train.iloc[-overlap_size:], self.df_test])
             analyzer = RollingSpreadAnalyzer(df_test_extended, self.ticker_x, self.ticker_y, window=w)
@@ -612,6 +691,7 @@ class PairsBacktest:
                 self.ticker_y, 
                 transaction_cost=self.transaction_cost,
                 compounding=self.compounding,
+                **self.trading_kwargs,
                 **params
             )
             self.best_test_df = strategy.df.loc[self.df_test.index]
@@ -624,6 +704,7 @@ class PairsBacktest:
                 compute_stationarity=True, 
                 transaction_cost=self.transaction_cost,
                 compounding=self.compounding,
+                **self.trading_kwargs,
                 **params
             )
             self.best_test_df = strategy.df.loc[self.df_test.index]

@@ -55,7 +55,7 @@ class RollingSpreadAnalyzer:
         self.df: pd.DataFrame = df.copy()
         self.ticker_x: str = ticker_x
         self.ticker_y: str = ticker_y
-        self.window: int = window
+        self.window: int = int(window)
 
     def run_analysis(self) -> pd.DataFrame:
         """Executes the rolling parameter calculation pipeline.

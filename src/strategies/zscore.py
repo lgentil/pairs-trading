@@ -136,10 +136,12 @@ class DynamicZScoreStrategy(BasePairsStrategy):
 
         z_vals = self.df['z_score'].values
         hr_array = self.df['Hedge_Ratio'].values
+        is_stat_vals = self.df['Is_Stationary'].values if 'Is_Stationary' in self.df.columns else np.full(len(self.df), False)
         n = len(self.df)
         
         positions = np.zeros(n)
         exec_hr = np.full(n, np.nan)
+        timestamps = self.df.index
         current_pos = 0.0
         current_hr = np.nan
         stopped_out = False
@@ -150,8 +152,23 @@ class DynamicZScoreStrategy(BasePairsStrategy):
 
         for i in range(n):
             z = z_vals[i]
+            t_curr = timestamps[i]
+            is_stat = bool(is_stat_vals[i]) if pd.notnull(is_stat_vals[i]) else False
+
+            # Reset stop-loss state at the start of each new trading session
+            if i > 0 and t_curr.date() != timestamps[i - 1].date():
+                stopped_out = False
 
             if np.isnan(z):
+                positions[i] = current_pos
+                exec_hr[i] = current_hr
+                continue
+
+            # 1. Mandatory intraday market close (Day Trading)
+            if self.must_close_position(t_curr):
+                if current_pos != 0.0:
+                    current_pos = 0.0
+                    current_hr = np.nan
                 positions[i] = current_pos
                 exec_hr[i] = current_hr
                 continue
@@ -179,7 +196,8 @@ class DynamicZScoreStrategy(BasePairsStrategy):
                 if (z >= 0.0 and z_prev < 0.0) or (z <= 0.0 and z_prev > 0.0):
                     stopped_out = False
 
-            if current_pos == 0.0 and not stopped_out:
+            # 2. Position entry (respecting intraday entry window for Day Trading and stationarity confirmation)
+            if current_pos == 0.0 and not stopped_out and self.can_open_position(t_curr, is_stat):
                 if z < -ez and z >= -sz:
                     current_pos = 1.0
                     current_hr = hr_array[i]
@@ -193,30 +211,5 @@ class DynamicZScoreStrategy(BasePairsStrategy):
         self.df['positions'] = positions
         self.df['trade_hr'] = exec_hr
 
-        prev_hr = self.df['trade_hr'].shift(1)
-        prev_pos = self.df['positions'].shift(1)
-        
-        delta_y = self.df[self.ticker_y] - self.df[self.ticker_y].shift(1)
-        delta_x = self.df[self.ticker_x] - self.df[self.ticker_x].shift(1)
-        
-        pnl_cesta = delta_y - (prev_hr * delta_x)
-        capital_alocado = self.df[self.ticker_y].shift(1).abs() + (prev_hr.abs() * self.df[self.ticker_x].shift(1).abs())
-        
-        self.df['percentage_change'] = np.where(
-            capital_alocado != 0, 
-            pnl_cesta / capital_alocado, 
-            0.0
-        )
-        
-        self.df['strategy_returns'] = prev_pos * self.df['percentage_change']
-        
-        position_diff = self.df['positions'].diff().fillna(0.0).abs()
-        self.df['transaction_costs'] = position_diff * self.transaction_cost
-        self.df['net_strategy_returns'] = self.df['strategy_returns'].fillna(0.0) - self.df['transaction_costs']
-        
-        if self.compounding:
-            self.df['cumulative_returns'] = (self.df['net_strategy_returns'] + 1.0).cumprod()
-        else:
-            self.df['cumulative_returns'] = self.df['net_strategy_returns'].cumsum() + 1.0
+        return self.compute_strategy_returns()
 
-        return self.df
